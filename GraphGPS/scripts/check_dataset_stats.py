@@ -21,7 +21,7 @@ import time
 import numpy as np
 import networkx as nx
 import torch
-from torch_geometric.datasets import TUDataset, ZINC
+from torch_geometric.datasets import GNNBenchmarkDataset, TUDataset, ZINC
 from torch_geometric.utils import to_networkx
 
 
@@ -129,6 +129,30 @@ def main():
         print(f"\nLoading {ds_name}...")
         ds = TUDataset(root=os.path.join(args.data_dir, ds_name), name=ds_name)
         results[ds_name] = analyze(ds_name, ds, args.sample)
+
+    # GNNBenchmark: CIFAR10 superpixel graphs (vision, non-molecular)
+    print("\nLoading CIFAR10 (superpixels)...")
+    cifar_splits = [
+        GNNBenchmarkDataset(
+            root=os.path.join(args.data_dir, 'CIFAR10'), name='CIFAR10', split=s)
+        for s in ['train', 'val', 'test']
+    ]
+    cifar_graphs = [cifar_splits[0][i] for i in range(len(cifar_splits[0]))] + \
+                   [cifar_splits[1][i] for i in range(len(cifar_splits[1]))] + \
+                   [cifar_splits[2][i] for i in range(len(cifar_splits[2]))]
+
+    class _CIFARDataset:
+        def __init__(self, graphs, src):
+            self._graphs = graphs
+            self._src = src
+        def __len__(self): return len(self._graphs)
+        def __getitem__(self, i): return self._graphs[i]
+        @property
+        def num_node_features(self): return self._src[0].num_node_features
+        @property
+        def num_edge_features(self): return self._src[0].num_edge_features
+
+    results['CIFAR10'] = analyze('CIFAR10', _CIFARDataset(cifar_graphs, cifar_splits), args.sample)
 
     # ZINC subset
     print("\nLoading ZINC (subset)...")

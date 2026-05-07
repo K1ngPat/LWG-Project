@@ -2,7 +2,7 @@ out_dir: results
 metric_best: accuracy
 metric_agg: argmax
 wandb:
-  use: True
+  use: False
   project: CIFAR10
 dataset:
   format: PyG-GNNBenchmarkDataset
@@ -11,21 +11,11 @@ dataset:
   task_type: classification
   transductive: False
   node_encoder: True
-  node_encoder_name: LapPE
+  node_encoder_name: LinearNode  # P = ∅: no positional/structural encoding
   node_encoder_bn: False
   edge_encoder: True
   edge_encoder_name: LinearEdge
   edge_encoder_bn: False
-posenc_LapPE:
-  enable: True
-  eigen:
-    laplacian_norm: none
-    eigvec_norm: L2
-    max_freqs: 8
-  model: DeepSet
-  dim_pe: 8
-  layers: 2
-  raw_norm_type: none
 train:
   mode: custom
   batch_size: 16
@@ -36,7 +26,7 @@ model:
   loss_fun: cross_entropy
   edge_decoding: dot
   graph_pooling: mean
-gt:  # Hyperparameters optimized for ~100k budget.
+gt:
   layer_type: CustomGatedGCN+Transformer
   layers: 3
   n_heads: 4

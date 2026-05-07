@@ -48,6 +48,7 @@ fi
 run_exp "configs/GPS/mutag-GPS.yaml"            "C1 MUTAG+LapPE"
 run_exp "configs/GPS/enzymes-GPS.yaml"          "C1 ENZYMES+LapPE"
 run_exp "configs/GPS/nci1-GPS.yaml"             "C1 NCI1+LapPE"
+run_exp "configs/GPS/cifar10-GPS.yaml"          "C1 CIFAR10+LapPE"
 
 # ── C2: Zero-Embedding (P=∅) ──────────────────────────────────────────────
 if [ "$SKIP_SLOW" -eq 0 ]; then
@@ -57,6 +58,7 @@ fi
 run_exp "configs/GPS/mutag-GPS-noPE.yaml"       "C2 MUTAG noPE"
 run_exp "configs/GPS/enzymes-GPS-noPE.yaml"     "C2 ENZYMES noPE"
 run_exp "configs/GPS/nci1-GPS-noPE.yaml"        "C2 NCI1 noPE"
+run_exp "configs/GPS/cifar10-GPS-noPE.yaml"     "C2 CIFAR10 noPE"
 
 echo ""
 echo "========================================================"

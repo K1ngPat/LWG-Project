@@ -45,6 +45,9 @@ EXPERIMENTS = [
     dict(dataset='NCI1',
          metric='accuracy',   higher_is_better=True,  metric_agg='argmax',
          c1='nci1-GPS',       c2='nci1-GPS-noPE'),
+    dict(dataset='CIFAR10',
+         metric='accuracy',   higher_is_better=True,  metric_agg='argmax',
+         c1='cifar10-GPS',    c2='cifar10-GPS-noPE'),
 ]
 
 
