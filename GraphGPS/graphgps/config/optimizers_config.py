@@ -26,3 +26,7 @@ def extended_optim_cfg(cfg):
     # Clip gradient norms while training
     cfg.optim.clip_grad_norm = False
     cfg.optim.clip_grad_norm_value = 1.0
+
+    # Early stopping: stop if val metric doesn't improve for this many epochs.
+    # 0 = disabled.
+    cfg.optim.early_stop_patience = 0

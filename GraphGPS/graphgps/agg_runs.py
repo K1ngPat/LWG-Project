@@ -35,9 +35,11 @@ def is_split(s):
 
 
 def join_list(l1, l2):
-    assert len(l1) == len(l2), \
-        'Results with different seeds must have the save format'
-    for i in range(len(l1)):
+    # Truncate to shortest length so seeds with different epoch counts
+    # (e.g. due to early stopping) can still be aggregated.
+    min_len = min(len(l1), len(l2))
+    l1 = l1[:min_len]
+    for i in range(min_len):
         l1[i] += l2[i]
     return l1
 

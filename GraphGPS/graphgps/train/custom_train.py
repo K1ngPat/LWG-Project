@@ -177,6 +177,15 @@ def custom_train(loggers, loaders, model, optimizer, scheduler):
                     run.log(bstats, step=cur_epoch)
                     run.summary["full_epoch_time_avg"] = np.mean(full_epoch_times)
                     run.summary["full_epoch_time_sum"] = np.sum(full_epoch_times)
+            # Early stopping.
+            if cfg.optim.early_stop_patience > 0 and \
+                    cur_epoch - best_epoch >= cfg.optim.early_stop_patience:
+                logging.info(
+                    f"Early stopping at epoch {cur_epoch}: "
+                    f"no improvement for {cfg.optim.early_stop_patience} epochs."
+                )
+                break
+
             # Checkpoint the best epoch params (if enabled).
             if cfg.train.enable_ckpt and cfg.train.ckpt_best and \
                     best_epoch == cur_epoch:

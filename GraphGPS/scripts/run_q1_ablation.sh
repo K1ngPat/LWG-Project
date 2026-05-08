@@ -18,8 +18,9 @@
 set -euo pipefail
 
 REPEAT="${REPEAT:-3}"              # seeds for large datasets (ZINC, molhiv, CIFAR10)
-REPEAT_SMALL="${REPEAT_SMALL:-10}" # seeds for small high-variance datasets (MUTAG, ENZYMES, NCI1)
-SKIP_SLOW="${SKIP_SLOW:-0}"        # set to 1 to skip ZINC (2000 ep) and molhiv (slow)
+REPEAT_SMALL="${REPEAT_SMALL:-3}"  # seeds for small datasets (MUTAG, ENZYMES, NCI1)
+SKIP_SLOW="${SKIP_SLOW:-1}"        # skip ZINC/molhiv/CIFAR10 by default (need GPU)
+PATIENCE="${PATIENCE:-10}"         # early stopping patience (0 = disabled)
 
 # Move to GraphGPS root so `python main.py` works
 cd "$(dirname "$0")/.."
@@ -28,6 +29,7 @@ echo "========================================================"
 echo "  Q1 Zero-Embedding Ablation — GraphGPS §2.2"
 echo "  Seeds (large datasets): $REPEAT"
 echo "  Seeds (small datasets): $REPEAT_SMALL  (MUTAG / ENZYMES / NCI1)"
+echo "  Early-stop patience:    $PATIENCE epochs"
 echo "  Working directory:    $(pwd)"
 echo "========================================================"
 
@@ -36,11 +38,12 @@ run_exp() {
     local label="$2"
     local repeat="${3:-$REPEAT}"   # per-call override; falls back to $REPEAT
     echo ""
-    echo "--- [$label] $cfg_file  (seeds: $repeat) ---"
+    echo "--- [$label] $cfg_file  (seeds: $repeat, patience: $PATIENCE) ---"
     python main.py \
         --cfg "$cfg_file" \
         --repeat "$repeat" \
-        wandb.use False
+        wandb.use False \
+        optim.early_stop_patience "$PATIENCE"
     echo "--- done: $cfg_file ---"
 }
 
@@ -52,7 +55,9 @@ fi
 run_exp "configs/GPS/mutag-GPS.yaml"            "C1 MUTAG+LapPE"   "$REPEAT_SMALL"
 run_exp "configs/GPS/enzymes-GPS.yaml"          "C1 ENZYMES+LapPE" "$REPEAT_SMALL"
 run_exp "configs/GPS/nci1-GPS.yaml"             "C1 NCI1+LapPE"    "$REPEAT_SMALL"
-run_exp "configs/GPS/cifar10-GPS.yaml"          "C1 CIFAR10+LapPE"
+if [ "$SKIP_SLOW" -eq 0 ]; then
+    run_exp "configs/GPS/cifar10-GPS.yaml"      "C1 CIFAR10+LapPE"
+fi
 
 # ── C2: Zero-Embedding (P=∅) ──────────────────────────────────────────────
 if [ "$SKIP_SLOW" -eq 0 ]; then
@@ -62,7 +67,9 @@ fi
 run_exp "configs/GPS/mutag-GPS-noPE.yaml"       "C2 MUTAG noPE"    "$REPEAT_SMALL"
 run_exp "configs/GPS/enzymes-GPS-noPE.yaml"     "C2 ENZYMES noPE"  "$REPEAT_SMALL"
 run_exp "configs/GPS/nci1-GPS-noPE.yaml"        "C2 NCI1 noPE"     "$REPEAT_SMALL"
-run_exp "configs/GPS/cifar10-GPS-noPE.yaml"     "C2 CIFAR10 noPE"
+if [ "$SKIP_SLOW" -eq 0 ]; then
+    run_exp "configs/GPS/cifar10-GPS-noPE.yaml" "C2 CIFAR10 noPE"
+fi
 
 echo ""
 echo "========================================================"

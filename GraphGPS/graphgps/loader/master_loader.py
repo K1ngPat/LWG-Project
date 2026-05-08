@@ -21,6 +21,7 @@ from graphgps.loader.dataset.voc_superpixels import VOCSuperpixels
 from graphgps.loader.split_generator import (prepare_splits,
                                              set_dataset_splits)
 from graphgps.transform.posenc_stats import compute_posenc_stats
+from graphgps.transform.ricci_curvature import compute_ricci_curvature
 from graphgps.transform.task_preprocessing import task_specific_preprocessing
 from graphgps.transform.transforms import (pre_transform_in_memory,
                                            typecast_x, concat_x_and_pos,
@@ -214,6 +215,19 @@ def load_dataset_master(format, name, dataset_dir):
         timestr = time.strftime('%H:%M:%S', time.gmtime(elapsed)) \
                   + f'{elapsed:.2f}'[-3:]
         logging.info(f"Done! Took {timestr}")
+
+    # Precompute Ricci curvature edge features (H1 / Q2 ablation).
+    if getattr(cfg, 'ricci', None) is not None and cfg.ricci.enable:
+        start = time.perf_counter()
+        logging.info(f"Precomputing Ricci curvature ({cfg.ricci.variant}) "
+                     f"for all graphs...")
+        pre_transform_in_memory(dataset,
+                                partial(compute_ricci_curvature, cfg=cfg),
+                                show_progress=True)
+        elapsed = time.perf_counter() - start
+        timestr = time.strftime('%H:%M:%S', time.gmtime(elapsed)) \
+                  + f'{elapsed:.2f}'[-3:]
+        logging.info(f"Done! Ricci precompute took {timestr}")
 
     # Set standard dataset train/val/test splits
     if hasattr(dataset, 'split_idxs'):
