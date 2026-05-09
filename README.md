@@ -21,3 +21,12 @@ conda env create -f environment.yml
 
 conda activate graphgps
 ```
+
+---
+
+## Dataset Profile
+
+Structural statistics across the three study datasets (MUTAG, ENZYMES, NCI1):
+number of graphs, average nodes, average edges, and average degree.
+
+![Dataset Profile](GraphGPS/results/plots/dataset_profile.png)
