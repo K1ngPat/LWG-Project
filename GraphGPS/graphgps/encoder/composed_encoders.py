@@ -14,6 +14,7 @@ from graphgps.encoder.type_dict_encoder import TypeDictNodeEncoder
 from graphgps.encoder.linear_node_encoder import LinearNodeEncoder
 from graphgps.encoder.equivstable_laplace_pos_encoder import EquivStableLapPENodeEncoder
 from graphgps.encoder.graphormer_encoder import GraphormerEncoder
+from graphgps.encoder.graphstats_pos_encoder import GraphStatsSENodeEncoder
 
 
 def concat_node_encoders(encoder_classes, pe_enc_names):
@@ -131,6 +132,15 @@ for ds_enc_name, ds_enc_cls in ds_encs.items():
         f"{ds_enc_name}+LapPE+RWSE",
         concat_node_encoders([ds_enc_cls, LapPENodeEncoder, RWSENodeEncoder],
                              ['LapPE', 'RWSE'])
+    )
+
+# Combine LapPE with graph-level structural statistics.
+for ds_enc_name, ds_enc_cls in ds_encs.items():
+    register_node_encoder(
+        f"{ds_enc_name}+LapPE+GraphStatsSE",
+        concat_node_encoders([ds_enc_cls, LapPENodeEncoder,
+                              GraphStatsSENodeEncoder],
+                             ['LapPE', 'GraphStatsSE'])
     )
 
 # Combine both SignNet and RWSE positional encodings.

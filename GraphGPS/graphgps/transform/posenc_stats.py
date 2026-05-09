@@ -5,9 +5,93 @@ import torch
 import torch.nn.functional as F
 from numpy.linalg import eigvals
 from torch_geometric.utils import (get_laplacian, to_scipy_sparse_matrix,
-                                   to_undirected, to_dense_adj, scatter)
+                                   to_undirected, to_dense_adj, scatter,
+                                   to_networkx)
 from torch_geometric.utils.num_nodes import maybe_num_nodes
 from graphgps.encoder.graphormer_encoder import graphormer_pre_processing
+
+import networkx as nx
+
+
+def _graph_stats_vector(data):
+    """Compute graph-level structural statistics for one graph."""
+    G = to_networkx(data, to_undirected=True)
+    n_nodes = G.number_of_nodes()
+    if n_nodes == 0:
+        return torch.zeros(4, dtype=torch.float)
+
+    n_edges = G.number_of_edges()
+    if n_edges == 0:
+        diameter = 0.0
+        girth = 0.0
+        bridge_density = 0.0
+        clustering = 0.0
+    else:
+        components = list(nx.connected_components(G))
+        largest = G.subgraph(max(components, key=len)).copy()
+        try:
+            diameter = float(nx.diameter(largest)) if largest.number_of_nodes() > 1 else 0.0
+        except Exception:
+            diameter = 0.0
+
+        girth = 0.0
+        girth_fn = getattr(nx, 'girth', None)
+        if callable(girth_fn):
+            try:
+                girth = float(girth_fn(G))
+            except Exception:
+                girth = 0.0
+
+        bridge_count = sum(1 for _ in nx.bridges(G))
+        bridge_density = float(bridge_count) / float(n_edges)
+        clustering = float(nx.average_clustering(G))
+
+    return torch.tensor([
+        np.log1p(diameter),
+        np.log1p(girth) if girth > 0 else 0.0,
+        bridge_density,
+        clustering,
+    ], dtype=torch.float)
+
+
+def compute_graph_stats_normalization(dataset):
+    """Compute dataset-wide mean/std for GraphStatsSE features."""
+    if len(dataset) == 0:
+        return torch.zeros(4, dtype=torch.float), torch.ones(4, dtype=torch.float)
+
+    stats = torch.stack([_graph_stats_vector(data) for data in dataset], dim=0)
+    mean = stats.mean(dim=0)
+    std = stats.std(dim=0, unbiased=False)
+    std = torch.where(std == 0, torch.ones_like(std), std)
+    return mean, std
+
+
+def _compute_graph_stats(data, stats_mean=None, stats_std=None, cfg=None):
+    """Compute graph-level structural statistics and broadcast them to nodes.
+
+    Returns a tensor of shape (num_nodes, 4) with the following columns:
+    log1p(diameter), log1p(girth), bridge_density, average_clustering.
+    """
+    stats = _graph_stats_vector(data)
+    if stats_mean is not None and stats_std is not None:
+        stats = (stats - stats_mean) / stats_std
+
+    # Select enabled stats according to cfg
+    if cfg is not None and hasattr(cfg.posenc_GraphStatsSE, 'enabled_stats'):
+        all_names = ['diameter', 'girth', 'bridge_density', 'clustering']
+        enabled = cfg.posenc_GraphStatsSE.enabled_stats
+        indices = [all_names.index(n) for n in enabled if n in all_names]
+        if len(indices) == 0:
+            selected = stats
+        else:
+            selected = stats[indices]
+    else:
+        selected = stats
+
+    n_nodes = data.num_nodes if hasattr(data, 'num_nodes') else data.x.shape[0]
+    if n_nodes == 0:
+        return torch.zeros((0, selected.shape[0]), dtype=torch.float)
+    return selected.unsqueeze(0).repeat(n_nodes, 1)
 
 
 def compute_posenc_stats(data, pe_types, is_undirected, cfg):
@@ -19,6 +103,7 @@ def compute_posenc_stats(data, pe_types, is_undirected, cfg):
     'HKfullPE': Full heat kernels and their diagonals. (NOT IMPLEMENTED)
     'HKdiagSE': Diagonals of heat kernel diffusion.
     'ElstaticSE': Kernel based on the electrostatic interaction between nodes.
+    'GraphStatsSE': Graph-level statistics broadcast to every node.
     'Graphormer': Computes spatial types and optionally edges along shortest paths.
 
     Args:
@@ -34,7 +119,7 @@ def compute_posenc_stats(data, pe_types, is_undirected, cfg):
     # Verify PE types.
     for t in pe_types:
         if t not in ['LapPE', 'EquivStableLapPE', 'SignNet', 'RWSE', 'HKdiagSE',
-                     'HKfullPE', 'ElstaticSE', 'GraphormerBias']:
+                     'HKfullPE', 'ElstaticSE', 'GraphStatsSE', 'GraphormerBias']:
             raise ValueError(f"Unexpected PE stats selection {t} in {pe_types}")
 
     # Basic preprocessing of the input graph.
@@ -135,6 +220,24 @@ def compute_posenc_stats(data, pe_types, is_undirected, cfg):
     if 'ElstaticSE' in pe_types:
         elstatic = get_electrostatic_function_encoding(undir_edge_index, N)
         data.pestat_ElstaticSE = elstatic
+
+    if 'GraphStatsSE' in pe_types:
+        stats_mean = None
+        stats_std = None
+        if hasattr(cfg.posenc_GraphStatsSE, 'stats_mean') and \
+                len(cfg.posenc_GraphStatsSE.stats_mean) > 0:
+            stats_mean = torch.tensor(cfg.posenc_GraphStatsSE.stats_mean,
+                                      dtype=torch.float)
+        if hasattr(cfg.posenc_GraphStatsSE, 'stats_std') and \
+                len(cfg.posenc_GraphStatsSE.stats_std) > 0:
+            stats_std = torch.tensor(cfg.posenc_GraphStatsSE.stats_std,
+                                     dtype=torch.float)
+        data.pestat_GraphStatsSE = _compute_graph_stats(
+            data, stats_mean=stats_mean, stats_std=stats_std, cfg=cfg)
+
+        # Silent sanitization: replace NaN/Inf with safe finite values.
+        data.pestat_GraphStatsSE = torch.nan_to_num(
+            data.pestat_GraphStatsSE, nan=0.0, posinf=0.0, neginf=0.0)
 
     if 'GraphormerBias' in pe_types:
         data = graphormer_pre_processing(

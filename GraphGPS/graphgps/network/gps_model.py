@@ -19,6 +19,20 @@ class FeatureEncoder(torch.nn.Module):
     def __init__(self, dim_in):
         super(FeatureEncoder, self).__init__()
         self.dim_in = dim_in
+        # Optionally prepend GraphStats as node features before any other
+        # node/edge encoders so they are available to the very first GPS
+        # layer. Only add if the positional-encoding is enabled and the
+        # dataset node encoder does not already include GraphStatsSE.
+        if getattr(cfg.posenc_GraphStatsSE, 'enable', False):
+            add_gs = True
+            if cfg.dataset.node_encoder and 'GraphStatsSE' in cfg.dataset.node_encoder_name:
+                add_gs = False
+            if add_gs:
+                GSClass = register.node_encoder_dict.get('GraphStatsSE', None)
+                if GSClass is not None:
+                    # Instantiate with target embedding dim so the module
+                    # projects/broadcasts to the correct size.
+                    self.graphstats_bcast = GSClass(cfg.gnn.dim_inner)
         if cfg.dataset.node_encoder:
             # Encode integer node features via nn.Embeddings
             NodeEncoder = register.node_encoder_dict[
@@ -63,6 +77,7 @@ class GPSModel(torch.nn.Module):
         super().__init__()
         self.encoder = FeatureEncoder(dim_in)
         dim_in = self.encoder.dim_in
+
 
         if cfg.gnn.layers_pre_mp > 0:
             self.pre_mp = GNNPreMP(

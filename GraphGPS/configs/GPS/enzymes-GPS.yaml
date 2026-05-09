@@ -11,7 +11,7 @@ dataset:
   task_type: classification
   transductive: False
   node_encoder: True
-  node_encoder_name: LinearNode+LapPE  # Pbase: LapPE as structural encoding
+  node_encoder_name: LinearNode+LapPE
   node_encoder_bn: False
   edge_encoder: True
   edge_encoder_name: DummyEdge
@@ -43,7 +43,7 @@ gt:
   layer_type: GINE+Transformer
   layers: 3
   n_heads: 4
-  dim_hidden: 64  # `gt.dim_hidden` must match `gnn.dim_inner`
+  dim_hidden: 64
   dropout: 0.0
   attn_dropout: 0.5
   layer_norm: False
@@ -52,7 +52,7 @@ gnn:
   head: default
   layers_pre_mp: 0
   layers_post_mp: 2
-  dim_inner: 64  # `gt.dim_hidden` must match `gnn.dim_inner`
+  dim_inner: 64
   batchnorm: True
   act: relu
   dropout: 0.0
@@ -63,6 +63,6 @@ optim:
   optimizer: adamW
   weight_decay: 1e-4
   base_lr: 0.001
-  max_epoch: 300
+  max_epoch: 50
   scheduler: cosine_with_warmup
-  num_warmup_epochs: 20
+  num_warmup_epochs: 10

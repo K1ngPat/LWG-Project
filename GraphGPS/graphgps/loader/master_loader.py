@@ -20,7 +20,8 @@ from graphgps.loader.dataset.malnet_tiny import MalNetTiny
 from graphgps.loader.dataset.voc_superpixels import VOCSuperpixels
 from graphgps.loader.split_generator import (prepare_splits,
                                              set_dataset_splits)
-from graphgps.transform.posenc_stats import compute_posenc_stats
+from graphgps.transform.posenc_stats import (compute_posenc_stats,
+                                             compute_graph_stats_normalization)
 from graphgps.transform.task_preprocessing import task_specific_preprocessing
 from graphgps.transform.transforms import (pre_transform_in_memory,
                                            typecast_x, concat_x_and_pos,
@@ -183,6 +184,15 @@ def load_dataset_master(format, name, dataset_dir):
     pre_transform_in_memory(dataset, partial(task_specific_preprocessing, cfg=cfg))
 
     log_loaded_dataset(dataset, format, name)
+
+    if getattr(cfg.posenc_GraphStatsSE, 'enable', False) and \
+            getattr(cfg.posenc_GraphStatsSE, 'normalize', False):
+        logging.info("Computing dataset-wide normalization for GraphStatsSE...")
+        stats_mean, stats_std = compute_graph_stats_normalization(dataset)
+        cfg.posenc_GraphStatsSE.stats_mean = stats_mean.tolist()
+        cfg.posenc_GraphStatsSE.stats_std = stats_std.tolist()
+        logging.info(f"  GraphStatsSE mean: {cfg.posenc_GraphStatsSE.stats_mean}")
+        logging.info(f"  GraphStatsSE std : {cfg.posenc_GraphStatsSE.stats_std}")
 
     # Precompute necessary statistics for positional encodings.
     pe_enabled_list = []

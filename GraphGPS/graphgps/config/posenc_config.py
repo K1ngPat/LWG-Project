@@ -14,10 +14,12 @@ def set_cfg_posenc(cfg):
     cfg.posenc_HKdiagSE = CN()
     cfg.posenc_ElstaticSE = CN()
     cfg.posenc_EquivStableLapPE = CN()
+    cfg.posenc_GraphStatsSE = CN()
 
     # Common arguments to all PE types.
     for name in ['posenc_LapPE', 'posenc_SignNet',
-                 'posenc_RWSE', 'posenc_HKdiagSE', 'posenc_ElstaticSE']:
+                 'posenc_RWSE', 'posenc_HKdiagSE', 'posenc_ElstaticSE',
+                 'posenc_GraphStatsSE']:
         pecfg = getattr(cfg, name)
 
         # Use extended positional encodings
@@ -49,6 +51,17 @@ def set_cfg_posenc(cfg):
     # Config for EquivStable LapPE
     cfg.posenc_EquivStableLapPE.enable = False
     cfg.posenc_EquivStableLapPE.raw_norm_type = 'none'
+
+    # Graph-level statistics encoding used for the H2 study.
+    cfg.posenc_GraphStatsSE.enable = False
+    cfg.posenc_GraphStatsSE.normalize = False
+    cfg.posenc_GraphStatsSE.stats_mean = []
+    cfg.posenc_GraphStatsSE.stats_std = []
+    # Which per-graph stats to use and in which order.
+    # Choices: diameter, girth, bridge_density, clustering
+    cfg.posenc_GraphStatsSE.enabled_stats = ['diameter', 'girth', 'bridge_density', 'clustering']
+    # (No debug/dummy flags kept here; sanitization is handled silently in
+    # the precompute pipeline.)
 
     # Config for Laplacian Eigen-decomposition for PEs that use it.
     for name in ['posenc_LapPE', 'posenc_SignNet', 'posenc_EquivStableLapPE']:
