@@ -55,11 +55,3 @@ python main.py --cfg configs/GPS/zinc-GPS+RWSE.yaml wandb.use False optim.max_ep
 ```
 
 If the setup is successful, the training script should start without dependency or import errors.
-
----
-
-## Notes
-
-* The GraphGPS codebase has already been merged into the main repository.
-* No `git submodule` initialization step is required anymore.
-* The setup order above is important and should be followed exactly.
